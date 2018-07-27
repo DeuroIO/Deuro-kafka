@@ -305,11 +305,26 @@ object TestUtils extends Logging {
    * Wait until the leader is elected and the metadata is propagated to all brokers.
    * Return the leader for each partition.
    */
-  def createTopic(zkClient: KafkaZkClient, topic: String, partitionReplicaAssignment: collection.Map[Int, Seq[Int]],
+  def createTopic(zkClient: KafkaZkClient,
+                  topic: String,
+                  partitionReplicaAssignment: collection.Map[Int, Seq[Int]],
                   servers: Seq[KafkaServer]): scala.collection.immutable.Map[Int, Int] = {
+    createTopic(zkClient, topic, partitionReplicaAssignment, servers, new Properties())
+  }
+
+  /**
+   * Create a topic in ZooKeeper using a customized replica assignment.
+   * Wait until the leader is elected and the metadata is propagated to all brokers.
+   * Return the leader for each partition.
+   */
+  def createTopic(zkClient: KafkaZkClient,
+                  topic: String,
+                  partitionReplicaAssignment: collection.Map[Int, Seq[Int]],
+                  servers: Seq[KafkaServer],
+                  topicConfig: Properties): scala.collection.immutable.Map[Int, Int] = {
     val adminZkClient = new AdminZkClient(zkClient)
     // create topic
-    adminZkClient.createOrUpdateTopicPartitionAssignmentPathInZK(topic, partitionReplicaAssignment)
+    adminZkClient.createOrUpdateTopicPartitionAssignmentPathInZK(topic, partitionReplicaAssignment, topicConfig)
     // wait until the update metadata request for new topic reaches all servers
     partitionReplicaAssignment.keySet.map { case i =>
       TestUtils.waitUntilMetadataIsPropagated(servers, topic, i)
@@ -533,8 +548,8 @@ object TestUtils extends Logging {
                            maxBlockMs: Long = 60 * 1000L,
                            bufferSize: Long = 1024L * 1024L,
                            retries: Int = 0,
-                           lingerMs: Long = 0,
-                           requestTimeoutMs: Long = 30 * 1000L,
+                           lingerMs: Int = 0,
+                           requestTimeoutMs: Int = 30 * 1000,
                            securityProtocol: SecurityProtocol = SecurityProtocol.PLAINTEXT,
                            trustStoreFile: Option[File] = None,
                            saslProperties: Option[Properties] = None,
@@ -549,6 +564,11 @@ object TestUtils extends Logging {
     producerProps.put(ProducerConfig.BUFFER_MEMORY_CONFIG, bufferSize.toString)
     producerProps.put(ProducerConfig.RETRIES_CONFIG, retries.toString)
     producerProps.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, requestTimeoutMs.toString)
+    producerProps.put(ProducerConfig.LINGER_MS_CONFIG, lingerMs.toString)
+
+    // In case of overflow set maximum possible value for deliveryTimeoutMs
+    val deliveryTimeoutMs = if (lingerMs + requestTimeoutMs < 0) Int.MaxValue else lingerMs + requestTimeoutMs
+    producerProps.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, deliveryTimeoutMs.toString)
 
     /* Only use these if not already set */
     val defaultProps = Map(
@@ -659,7 +679,7 @@ object TestUtils extends Logging {
       val listenerName = ListenerName.forSecurityProtocol(protocol)
       Broker(b.id, Seq(EndPoint("localhost", 6667, listenerName, protocol)), b.rack)
     }
-    brokers.foreach(b => zkClient.registerBrokerInZk(BrokerInfo(Broker(b.id, b.endPoints, rack = b.rack),
+    brokers.foreach(b => zkClient.registerBroker(BrokerInfo(Broker(b.id, b.endPoints, rack = b.rack),
       ApiVersion.latestVersion, jmxPort = -1)))
     brokers
   }

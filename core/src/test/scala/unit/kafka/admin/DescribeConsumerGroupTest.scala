@@ -16,9 +16,11 @@
  */
 package kafka.admin
 
+import java.util.Properties
+
 import joptsimple.OptionException
 import kafka.utils.TestUtils
-import org.apache.kafka.clients.consumer.RoundRobinAssignor
+import org.apache.kafka.clients.consumer.{ConsumerConfig, RoundRobinAssignor}
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.{TimeoutException}
 import org.junit.Assert._
@@ -410,7 +412,7 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
   def testDescribeWithMultiPartitionTopicAndMultipleConsumers() {
     TestUtils.createOffsetsTopic(zkClient, servers)
     val topic2 = "foo2"
-    adminZkClient.createTopic(topic2, 2, 1)
+    createTopic(topic2, 2, 1)
 
     for (describeType <- describeTypes) {
       val group = this.group + describeType.mkString("")
@@ -431,7 +433,7 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
   def testDescribeOffsetsWithMultiPartitionTopicAndMultipleConsumers() {
     TestUtils.createOffsetsTopic(zkClient, servers)
     val topic2 = "foo2"
-    adminZkClient.createTopic(topic2, 2, 1)
+    createTopic(topic2, 2, 1)
 
     // run two consumers in the group consuming from a two-partition topic
     addConsumerGroupExecutor(numConsumers = 2, topic2)
@@ -453,7 +455,7 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
   def testDescribeMembersWithMultiPartitionTopicAndMultipleConsumers() {
     TestUtils.createOffsetsTopic(zkClient, servers)
     val topic2 = "foo2"
-    adminZkClient.createTopic(topic2, 2, 1)
+    createTopic(topic2, 2, 1)
 
     // run two consumers in the group consuming from a two-partition topic
     addConsumerGroupExecutor(numConsumers = 2, topic2)
@@ -479,7 +481,7 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
   def testDescribeStateWithMultiPartitionTopicAndMultipleConsumers() {
     TestUtils.createOffsetsTopic(zkClient, servers)
     val topic2 = "foo2"
-    adminZkClient.createTopic(topic2, 2, 1)
+    createTopic(topic2, 2, 1)
 
     // run two consumers in the group consuming from a two-partition topic
     addConsumerGroupExecutor(numConsumers = 2, topic2)
@@ -499,7 +501,7 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
 
     TestUtils.createOffsetsTopic(zkClient, servers)
     val topic2 = "foo2"
-    adminZkClient.createTopic(topic2, 2, 1)
+    createTopic(topic2, 2, 1)
     addSimpleGroupExecutor(Seq(new TopicPartition(topic2, 0), new TopicPartition(topic2, 1)))
 
     val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
@@ -603,6 +605,30 @@ class DescribeConsumerGroupTest extends ConsumerGroupCommandTest {
     val cgcArgs = Array("--new-consumer", "--bootstrap-server", brokerList, "--describe", "--group", group)
     getConsumerGroupService(cgcArgs)
     fail("Expected an error due to presence of unrecognized --new-consumer option")
+  }
+
+  @Test
+  def testDescribeNonOffsetCommitGroup() {
+    TestUtils.createOffsetsTopic(zkClient, servers)
+
+    val customProps = new Properties
+    // create a consumer group that never commits offsets
+    customProps.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+    // run one consumer in the group consuming from a single-partition topic
+    addConsumerGroupExecutor(numConsumers = 1, customPropsOpt = Some(customProps))
+
+    val cgcArgs = Array("--bootstrap-server", brokerList, "--describe", "--group", group)
+    val service = getConsumerGroupService(cgcArgs)
+
+    TestUtils.waitUntilTrue(() => {
+      val (state, assignments) = service.collectGroupOffsets()
+      state.contains("Stable") &&
+        assignments.isDefined &&
+        assignments.get.count(_.group == group) == 1 &&
+        assignments.get.filter(_.group == group).head.consumerId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE) &&
+        assignments.get.filter(_.group == group).head.clientId.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE) &&
+        assignments.get.filter(_.group == group).head.host.exists(_.trim != ConsumerGroupCommand.MISSING_COLUMN_VALUE)
+    }, s"Expected a 'Stable' group status, rows and valid values for consumer id / client id / host columns in describe results for non-offset-committing group $group.")
   }
 
 }
