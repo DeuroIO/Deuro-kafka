@@ -21,7 +21,9 @@ import org.apache.kafka.streams.errors.StreamsException;
 import org.apache.kafka.streams.kstream.GlobalKTable;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KTable;
+import org.apache.kafka.streams.kstream.internals.graph.GlobalStoreNode;
 import org.apache.kafka.streams.kstream.internals.graph.ProcessorParameters;
+import org.apache.kafka.streams.kstream.internals.graph.StateStoreNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamSourceNode;
 import org.apache.kafka.streams.kstream.internals.graph.StreamsGraphNode;
 import org.apache.kafka.streams.kstream.internals.graph.TableSourceNode;
@@ -167,7 +169,7 @@ public class InternalStreamsBuilder implements InternalNameProvider {
     }
 
     public synchronized void addStateStore(final StoreBuilder builder) {
-        internalTopologyBuilder.addStateStore(builder);
+        addGraphNode(root, new StateStoreNode(builder));
     }
 
     public synchronized void addGlobalStore(final StoreBuilder<KeyValueStore> storeBuilder,
@@ -176,16 +178,15 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                                             final ConsumedInternal consumed,
                                             final String processorName,
                                             final ProcessorSupplier stateUpdateSupplier) {
-        // explicitly disable logging for global stores
-        storeBuilder.withLoggingDisabled();
-        internalTopologyBuilder.addGlobalStore(storeBuilder,
-                                               sourceName,
-                                               consumed.timestampExtractor(),
-                                               consumed.keyDeserializer(),
-                                               consumed.valueDeserializer(),
-                                               topic,
-                                               processorName,
-                                               stateUpdateSupplier);
+
+        final StreamsGraphNode globalStoreNode = new GlobalStoreNode(storeBuilder,
+                                                                     sourceName,
+                                                                     topic,
+                                                                     consumed,
+                                                                     processorName,
+                                                                     stateUpdateSupplier);
+
+        addGraphNode(root, globalStoreNode);
     }
 
     public synchronized void addGlobalStore(final StoreBuilder<KeyValueStore> storeBuilder,
@@ -204,14 +205,14 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                        stateUpdateSupplier);
     }
 
-    void addGraphNode(StreamsGraphNode parent, StreamsGraphNode child) {
+    void addGraphNode(final StreamsGraphNode parent, final StreamsGraphNode child) {
         Objects.requireNonNull(parent, "parent node can't be null");
         Objects.requireNonNull(child, "child node can't be null");
         parent.addChildNode(child);
         maybeAddNodeForOptimizationMetadata(child);
     }
 
-    void addGraphNode(Collection<StreamsGraphNode> parents, StreamsGraphNode child) {
+    void addGraphNode(final Collection<StreamsGraphNode> parents, final StreamsGraphNode child) {
         Objects.requireNonNull(parents, "parent node can't be null");
         Objects.requireNonNull(child, "child node can't be null");
 
@@ -219,7 +220,7 @@ public class InternalStreamsBuilder implements InternalNameProvider {
             throw new StreamsException("Parent node collection can't be empty");
         }
 
-        for (StreamsGraphNode parent : parents) {
+        for (final StreamsGraphNode parent : parents) {
             addGraphNode(parent, child);
         }
     }
@@ -246,7 +247,7 @@ public class InternalStreamsBuilder implements InternalNameProvider {
                 streamGraphNode.setHasWrittenToTopology(true);
             }
 
-            for (StreamsGraphNode graphNode : streamGraphNode.children()) {
+            for (final StreamsGraphNode graphNode : streamGraphNode.children()) {
                 graphNodePriorityQueue.offer(graphNode);
             }
         }
