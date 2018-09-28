@@ -14,26 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.kafka.test;
+package org.apache.kafka.streams.kstream.internals.suppress;
 
-import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.utils.MockTime;
-import org.apache.kafka.streams.processor.StateStore;
-import org.apache.kafka.streams.state.internals.AbstractStoreBuilder;
-
-public class MockStoreBuilder extends AbstractStoreBuilder<Integer, byte[], StateStore> {
-
-    private final boolean persistent;
-
-    public MockStoreBuilder(final String storeName, final boolean persistent) {
-        super(storeName, Serdes.Integer(), Serdes.ByteArray(), new MockTime());
-
-        this.persistent = persistent;
-    }
-
-    @Override
-    public StateStore build() {
-        return new MockStateStore(name, persistent);
-    }
+public enum BufferFullStrategy {
+    EMIT,
+    SPILL_TO_DISK,
+    SHUT_DOWN
 }
-
