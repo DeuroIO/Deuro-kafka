@@ -220,7 +220,7 @@
             ssl.keystore.location=/var/private/ssl/client.keystore.jks
             ssl.keystore.password=test1234
             ssl.key.password=test1234</pre>
-			
+
             Other configuration settings that may also be needed depending on our requirements and the broker configuration:
                 <ol>
                     <li>ssl.provider (Optional). The name of the security provider used for SSL connections. Default value is the default security provider of the JVM.</li>
@@ -342,7 +342,7 @@
                 </li>
                 <li>Pass the JAAS config file location as JVM parameter to each client JVM. For example:
                     <pre class="brush: bash;">    -Djava.security.auth.login.config=/etc/kafka/kafka_client_jaas.conf</pre></li>
-	</ol>
+                </ol>
                 </li>
             </ol>
             </li>
@@ -455,7 +455,7 @@
                     Clients (producers, consumers, connect workers, etc) will authenticate to the cluster with their
                     own principal (usually with the same name as the user running the client), so obtain or create
                     these principals as needed. Then configure the JAAS configuration property for each client.
-                    Different clients within a JVM may run as different users by specifiying different principals.
+                    Different clients within a JVM may run as different users by specifying different principals.
                     The property <code>sasl.jaas.config</code> in producer.properties or consumer.properties describes
                     how clients like producer and consumer can connect to the Kafka Broker. The following is an example
                     configuration for a client using a keytab (recommended for long-running processes):
@@ -621,9 +621,9 @@
         <li><h5><a id="security_sasl_scram_clientconfig" href="#security_sasl_scram_clientconfig">Configuring Kafka Clients</a></h5>
             To configure SASL authentication on the clients:
             <ol>
-	    <li>Configure the JAAS configuration property for each client in producer.properties or consumer.properties.
+            <li>Configure the JAAS configuration property for each client in producer.properties or consumer.properties.
                 The login module describes how the clients like producer and consumer can connect to the Kafka Broker.
-	        The following is an example configuration for a client for the SCRAM mechanisms:
+                The following is an example configuration for a client for the SCRAM mechanisms:
                 <pre class="brush: text;">
    sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
         username="alice" \
@@ -973,7 +973,7 @@
                 <ol>
                     <li>Configure the JAAS configuration property for each client in producer.properties or consumer.properties.
                 The login module describes how the clients like producer and consumer can connect to the Kafka Broker.
-	        The following is an example configuration for a client for the token authentication:
+                The following is an example configuration for a client for the token authentication:
                 <pre class="brush: text;">
    sasl.jaas.config=org.apache.kafka.common.security.scram.ScramLoginModule required \
         username="tokenID123" \
@@ -1018,7 +1018,7 @@
     <pre>authorizer.class.name=kafka.security.auth.SimpleAclAuthorizer</pre>
     Kafka acls are defined in the general format of "Principal P is [Allowed/Denied] Operation O From Host H on any Resource R matching ResourcePattern RP". You can read more about the acl structure in KIP-11 and resource patterns in KIP-290. In order to add, remove or list acls you can use the Kafka authorizer CLI. By default, if no ResourcePatterns match a specific Resource R, then R has no associated acls, and therefore no one other than super users is allowed to access R. If you want to change that behavior, you can include the following in server.properties.
     <pre>allow.everyone.if.no.acl.found=true</pre>
-    One can also add super users in server.properties like the following (note that the delimiter is semicolon since SSL user names may contain comma).
+    One can also add super users in server.properties like the following (note that the delimiter is semicolon since SSL user names may contain comma). Default PrincipalType string "User" is case sensitive.
     <pre>super.users=User:Bob;User:Alice</pre>
     By default, the SSL user name will be of the form "CN=writeuser,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown". One can change that by setting a customized PrincipalBuilder in server.properties like the following.
     <pre>principal.builder.class=CustomizedPrincipalBuilderClass</pre>
@@ -1119,19 +1119,19 @@
         </tr>
         <tr>
             <td>--allow-principal</td>
-            <td>Principal is in PrincipalType:name format that will be added to ACL with Allow permission. <br>You can specify multiple --allow-principal in a single command.</td>
+            <td>Principal is in PrincipalType:name format that will be added to ACL with Allow permission. Default PrincipalType string "User" is case sensitive. <br>You can specify multiple --allow-principal in a single command.</td>
             <td></td>
             <td>Principal</td>
         </tr>
         <tr>
             <td>--deny-principal</td>
-            <td>Principal is in PrincipalType:name format that will be added to ACL with Deny permission. <br>You can specify multiple --deny-principal in a single command.</td>
+            <td>Principal is in PrincipalType:name format that will be added to ACL with Deny permission. Default PrincipalType string "User" is case sensitive. <br>You can specify multiple --deny-principal in a single command.</td>
             <td></td>
             <td>Principal</td>
         </tr>
         <tr>
             <td>--principal</td>
-            <td>Principal is in PrincipalType:name format that will be used along with --list option. This will list the ACLs for the specified principal. <br>You can specify multiple --principal in a single command.</td>
+            <td>Principal is in PrincipalType:name format that will be used along with --list option. Default PrincipalType string "User" is case sensitive. This will list the ACLs for the specified principal. <br>You can specify multiple --principal in a single command.</td>
             <td></td>
             <td>Principal</td>
         </tr>
